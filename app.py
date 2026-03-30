@@ -5,11 +5,11 @@ import socket
 
 app = Flask(__name__)
 
-# List pro ukládání zpráv v paměti
+# List pro ukládání historie zpráv v paměti (pro školní demo stačí)
 messages = []
 
-def get_ip():
-    """Pomocná funkce pro zjištění aktuální IP serveru"""
+def get_server_ip():
+    """Zjistí IP adresu serveru pro zobrazení v záhlaví"""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -32,7 +32,7 @@ def status():
     return jsonify({
         "status": "online",
         "author": "Martin Havlicek",
-        "server_ip": get_ip(),
+        "ip": get_server_ip(),
         "time": datetime.datetime.now().isoformat()
     })
 
@@ -49,36 +49,41 @@ def send_message():
     if not text:
         return jsonify({"error": "Empty text"}), 400
 
-    # Uložíme zprávu od člověka
-    new_msg = {"user": user, "text": text, "time": datetime.datetime.now().strftime("%H:%M:%S")}
-    messages.append(new_msg)
+    # Uložíme zprávu od uživatele
+    messages.append({
+        "user": user, 
+        "text": text, 
+        "time": datetime.datetime.now().strftime("%H:%M:%S")
+    })
 
-    # Reakce na příkaz !ai
-    if text.strip().startswith("!ai"):
-        prompt = text.replace("!ai", "").strip()
-        ai_response = call_ollama(prompt if prompt else "Ahoj, jsem tvůj AI asistent.")
+    # Pokud zpráva obsahuje !ai, spustíme kontrolu faktů
+    if "!ai" in text.lower():
+        claim = text.lower().replace("!ai", "").strip()
+        ai_reply = verify_fact(claim if claim else "Ahoj, jsem připraven kontrolovat fakta.")
         messages.append({
-            "user": "🤖 AI MODERÁTOR",
-            "text": ai_response,
+            "user": "🛡️ AI FAKT-CHECKER", 
+            "text": ai_reply, 
             "time": datetime.datetime.now().strftime("%H:%M:%S")
         })
 
     return jsonify({"status": "ok"})
 
-def call_gemma(prompt):
-    # host.docker.internal zajistí komunikaci ven z kontejneru na tvou Ollamu
+def verify_fact(text):
     url = "http://host.docker.internal:11434/api/generate"
+    # Prompt nastavený na kontrolu správnosti
+    prompt = f"Jsi přísný kontrolor faktů. Posuď krátce (1 věta), zda je toto tvrzení pravdivé nebo lživé: {text}"
+    
     payload = {
-        "model": "gemma3:27b",
-        "prompt": f"Jsi stručný asistent v chatu. Odpověz jednou větou na: {prompt}",
+        "model": "llama3.2:1b",
+        "prompt": prompt,
         "stream": False
     }
     try:
         r = requests.post(url, json=payload, timeout=15)
-        return r.json().get("response", "AI neodpovídá správně.")
+        return r.json().get("response", "Chyba v odpovědi AI.")
     except:
-        return "⚠️ AI je momentálně nedostupná (zkontroluj GEMMA_HOST=0.0.0.0)."
+        return "⚠️ AI spí. Zkontroluj OLLAMA_HOST=0.0.0.0 a běžící model."
 
 if __name__ == '__main__':
-    # host='0.0.0.0' zajistí, že appka je PUBLIC v celé tvé síti
-    app.run(host='0.0.0.0', port=8081, debug=False)
+    # host='0.0.0.0' zajistí, že je to PUBLIC pro celou školní LAN
+    app.run(host='0.0.0.0', port=8081)
