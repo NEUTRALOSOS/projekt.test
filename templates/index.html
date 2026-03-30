@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <title>EduChat AI Room</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #cfd8dc; margin: 0; display: flex; justify-content: center; height: 100vh; }
+        .container { width: 500px; background: white; display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .header { background: #263238; color: white; padding: 20px; text-align: center; font-size: 1.2em; }
+        #chat { flex: 1; overflow-y: auto; padding: 20px; background: #f4f7f6; display: flex; flex-direction: column; gap: 10px; }
+        .m { padding: 10px; border-radius: 10px; max-width: 80%; position: relative; }
+        .u { align-self: flex-end; background: #00897b; color: white; }
+        .a { align-self: flex-start; background: #ffffff; border: 1px solid #ccc; font-style: italic; }
+        .info { font-size: 0.7em; opacity: 0.8; display: block; margin-bottom: 5px; }
+        .controls { padding: 20px; display: flex; gap: 10px; background: #eee; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">EduChat: jmenoprijmeni.skola.test</div>
+    <div id="chat"></div>
+    <div class="controls">
+        <input type="text" id="nick" placeholder="Přezdívka" style="width: 80px;">
+        <input type="text" id="msg" placeholder="Zpráva (použij !ai ...)" style="flex: 1;" onkeypress="if(event.key==='Enter') send()">
+        <button onclick="send()" style="padding: 10px 20px; background: #00897b; color: white; border: none; border-radius: 5px; cursor: pointer;">Odeslat</button>
+    </div>
+</div>
+
+<script>
+    let msgCount = 0;
+    async function send() {
+        const nick = document.getElementById('nick').value || "Host";
+        const input = document.getElementById('msg');
+        if(!input.value.trim()) return;
+        await fetch('/send_message', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ user: nick, text: input.value })
+        });
+        input.value = '';
+        update();
+    }
+
+    async function update() {
+        const r = await fetch('/get_messages');
+        const data = await r.json();
+        const box = document.getElementById('chat');
+        if(data.length !== msgCount) {
+            box.innerHTML = '';
+            data.forEach(m => {
+                const cls = m.user.includes('AI') ? 'a' : 'u';
+                box.innerHTML += `<div class="m ${cls}"><span class="info">${m.user} (${m.time})</span>${m.text}</div>`;
+            });
+            box.scrollTop = box.scrollHeight;
+            msgCount = data.length;
+        }
+    }
+    setInterval(update, 2000);
+    update();
+</script>
+</body>
+</html>
