@@ -5,11 +5,15 @@ import socket
 
 app = Flask(__name__)
 
-# List pro ukládání historie zpráv v paměti (pro školní demo stačí)
+# Tvůj OpenAI-compatible setup
+OPENAI_API_KEY = "sk-bDybioUj4ecaemlOUdyPSg"
+OPENAI_BASE_URL = "https://kurim.ithope.eu/v1"
+
+# List pro ukládání historie zpráv v paměti
 messages = []
 
 def get_server_ip():
-    """Zjistí IP adresu serveru pro zobrazení v záhlaví"""
+    """Zjistí IP adresu serveru pro zobrazení v záhlaví [cite: 8, 14]"""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -25,10 +29,12 @@ def index():
 
 @app.route('/ping', methods=['GET'])
 def ping():
+    """Povinný endpoint dle zadání [cite: 15, 23]"""
     return "pong"
 
 @app.route('/status', methods=['GET'])
 def status():
+    """Povinný endpoint s autorem a časem [cite: 15, 23]"""
     return jsonify({
         "status": "online",
         "author": "Martin Havlicek",
@@ -56,7 +62,7 @@ def send_message():
         "time": datetime.datetime.now().strftime("%H:%M:%S")
     })
 
-    # Pokud zpráva obsahuje !ai, spustíme kontrolu faktů
+    # Pokud zpráva obsahuje !ai, spustíme kontrolu faktů [cite: 9, 30]
     if "!ai" in text.lower():
         claim = text.lower().replace("!ai", "").strip()
         ai_reply = verify_fact(claim if claim else "Ahoj, jsem připraven kontrolovat fakta.")
@@ -68,22 +74,41 @@ def send_message():
 
     return jsonify({"status": "ok"})
 
+@app.route('/ai', methods=['POST'])
+def ai_endpoint():
+    """Povinný endpoint POST /ai vyžadovaný zadáním [cite: 15, 23]"""
+    data = request.get_json()
+    prompt = data.get("prompt", "")
+    return jsonify({"reply": verify_fact(prompt)})
+
 def verify_fact(text):
-    url = "http://host.docker.internal:11434/api/generate"
-    # Prompt nastavený na kontrolu správnosti
-    prompt = f"Jsi přísný kontrolor faktů. Posuď krátce (1 věta), zda je toto tvrzení pravdivé nebo lživé: {text}"
+    """Volání externího LLM pro kontrolu správnosti [cite: 17, 30]"""
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
     
     payload = {
         "model": "gemma3:27b",
-        "prompt": prompt,
-        "stream": False
+        "messages": [
+            {
+                "role": "system", 
+                "content": "Jsi přísný kontrolor faktů. Posuď krátce (1 věta), zda je tvrzení pravdivé nebo lživé."
+            },
+            {"role": "user", "content": text}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 100 # Držíme odpověď krátkou dle zadání [cite: 30, 74]
     }
+
     try:
-        r = requests.post(url, json=payload, timeout=15)
-        return r.json().get("response", "Chyba v odpovědi AI.")
-    except:
-        return "⚠️ AI spí. Zkontroluj GEMMA_HOST=0.0.0.0 a běžící model."
+        r = requests.post(OPENAI_BASE_URL, json=payload, headers=headers, timeout=15)
+        # Formát pro OpenAI-compatible API
+        result = r.json()
+        return result['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        return f"⚠️ AI momentálně nedostupná. (Chyba: {str(e)})"
 
 if __name__ == '__main__':
-    # host='0.0.0.0' zajistí, že je to PUBLIC pro celou školní LAN
+    # Běží na portu 8081 dle zadání [cite: 8, 16, 24]
     app.run(host='0.0.0.0', port=8081)
