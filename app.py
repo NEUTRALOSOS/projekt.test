@@ -74,7 +74,7 @@ def verify_fact(text):
     prompt = f"Jsi přísný kontrolor faktů. Posuď krátce (1 věta), zda je toto tvrzení pravdivé nebo lživé: {text}"
     
     payload = {
-        "model": "llama3.2:1b",
+        "model": "gemma3:27b",
         "prompt": prompt,
         "stream": False
     }
@@ -82,7 +82,7 @@ def verify_fact(text):
         r = requests.post(url, json=payload, timeout=15)
         return r.json().get("response", "Chyba v odpovědi AI.")
     except:
-        return "⚠️ AI spí. Zkontroluj OLLAMA_HOST=0.0.0.0 a běžící model."
+        return "⚠️ AI spí. Zkontroluj GEMMA_HOST=0.0.0.0 a běžící model."
 
 if __name__ == '__main__':
     # host='0.0.0.0' zajistí, že je to PUBLIC pro celou školní LAN
