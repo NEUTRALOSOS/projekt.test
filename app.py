@@ -5,13 +5,14 @@ import socket
 import os
 import urllib3
 
+# ✅ Vypnutí varování o SSL (stejně jako u tebe)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-# ✅ načtení z ENV
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")  # nevyužitý, ale kvůli zadání
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "http://host.docker.internal:11434")
+# ✅ Načtení konfigurace z ENV (s tvým funkčním base_url jako defaultem)
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://kurim.ithope.eu/v1")
 
 messages = []
 
@@ -55,12 +56,14 @@ def send_message():
     if not text:
         return jsonify({"error": "Empty text"}), 400
 
+    # Přidání zprávy od uživatele
     messages.append({
         "user": user,
         "text": text,
         "time": datetime.datetime.now().strftime("%H:%M:%S")
     })
 
+    # Logika pro AI fakt-checkera
     if "!ai" in text.lower():
         claim = text.lower().replace("!ai", "").strip()
         ai_reply = verify_fact(claim if claim else "Ahoj, jsem připraven kontrolovat fakta.")
@@ -73,46 +76,44 @@ def send_message():
     return jsonify({"status": "ok"})
 
 def verify_fact(text):
-    # ✅ Ollama endpoint z ENV
-    url = f"{OPENAI_BASE_URL}/api/generate"
+    # ✅ Oprava URL na standardní OpenAI chat endpoint
+    clean_url = OPENAI_BASE_URL.rstrip('/')
+    target_url = f"{clean_url}/chat/completions"
 
     prompt = f"Jsi přísný kontrolor faktů. Posuď krátce (1 věta), zda je toto tvrzení pravdivé nebo lživé: {text}"
 
+    # ✅ Oprava struktury payloadu (z prompt na messages)
     payload = {
         "model": "gemma3:27b",
-        "prompt": prompt,
+        "messages": [{"role": "user", "content": prompt}],
         "stream": False
     }
 
-    try:
-        # Skládání URL pro endpoint kurim.ithope.eu/v1
-        clean_url = base_url.rstrip('/')
-        target_url = f"{clean_url}/chat/completions"
-        
-        # DEBUG výpis do konzole dockeru (uvidíš v logu, kam se to skutečně posílá)
-        print(f"DEBUG: Volám URL: {target_url}")
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-        response = requests.post(
+    try:
+        # ✅ Přidáno verify=False kvůli certifikátům
+        r = requests.post(
             target_url, 
-            headers=headers, 
             json=payload, 
+            headers=headers, 
             timeout=20, 
             verify=False
         )
         
-        if response.status_code == 200:
-            ai_response = response.json()['choices'][0]['message']['content']
-            return jsonify({"recommendation": ai_response})
+        if r.status_code == 200:
+            # ✅ Oprava parsování odpovědi (choices[0]...)
+            return r.json()['choices'][0]['message']['content']
         else:
-            # Pokud server vrátí chybu, pošleme ji do frontendu pro diagnostiku
-            return jsonify({
-                "error": f"Server vrátil {response.status_code}.",
-                "details": response.text
-            }), response.status_code
-
+            return f"Chyba AI (Status {r.status_code}): {r.text[:100]}"
+            
     except Exception as e:
-        return jsonify({"error": f"Spojení selhalo: {str(e)}"}), 500
+        return f"⚠️ AI chyba spojení: {str(e)}"
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)  
+    # Spuštění na portu 8081 (podle jeho zadání)
+    port = int(os.environ.get("PORT", 8081))
+    app.run(host='0.0.0.0', port=port)
