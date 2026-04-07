@@ -3,6 +3,9 @@ import requests
 import datetime
 import socket
 import os
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
@@ -82,13 +85,34 @@ def verify_fact(text):
     }
 
     try:
-        r = requests.post(url, json=payload, timeout=20)
-        return r.json().get("response", "Chyba v odpovědi AI.")
+        # Skládání URL pro endpoint kurim.ithope.eu/v1
+        clean_url = base_url.rstrip('/')
+        target_url = f"{clean_url}/chat/completions"
+        
+        # DEBUG výpis do konzole dockeru (uvidíš v logu, kam se to skutečně posílá)
+        print(f"DEBUG: Volám URL: {target_url}")
+
+        response = requests.post(
+            target_url, 
+            headers=headers, 
+            json=payload, 
+            timeout=20, 
+            verify=False
+        )
+        
+        if response.status_code == 200:
+            ai_response = response.json()['choices'][0]['message']['content']
+            return jsonify({"recommendation": ai_response})
+        else:
+            # Pokud server vrátí chybu, pošleme ji do frontendu pro diagnostiku
+            return jsonify({
+                "error": f"Server vrátil {response.status_code}.",
+                "details": response.text
+            }), response.status_code
+
     except Exception as e:
-        return f"⚠️ AI chyba: {str(e)}"
+        return jsonify({"error": f"Spojení selhalo: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(
-        host='0.0.0.0',
-        port=int(os.environ.get("PORT", 8081))
-    )
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)  
