@@ -6,10 +6,11 @@ import os
 
 app = Flask(__name__)
 
-# Načtení klíče z environment variables
-OPENAI_API_KEY = os.getenv("MY_API_KEY", "klic_nenalezen")
-OPENAI_BASE_URL = "https://kurim.ithope.eu/v1/chat/completions"
+# ✅ načtení z ENV (server si to nastaví sám)
+api_key = os.environ.get("OPENAI_API_KEY",)
+base_url = os.environ.get("OPENAI_BASE_URL", "https://kurim.ithope.eu/v1")
 
+# List pro ukládání historie zpráv
 messages = []
 
 def get_server_ip():
@@ -36,8 +37,7 @@ def status():
         "status": "online",
         "author": "Martin Havlicek",
         "ip": get_server_ip(),
-        "time": datetime.datetime.now().isoformat(),
-        "python_version": "3.12-slim"
+        "time": datetime.datetime.now().isoformat()
     })
 
 @app.route('/get_messages', methods=['GET'])
@@ -49,31 +49,52 @@ def send_message():
     data = request.get_json()
     user = data.get("user", "Anonym")
     text = data.get("text", "")
-    if not text: return jsonify({"error": "Empty"}), 400
 
-    messages.append({"user": user, "text": text, "time": datetime.datetime.now().strftime("%H:%M:%S")})
+    if not text:
+        return jsonify({"error": "Empty text"}), 400
+
+    messages.append({
+        "user": user,
+        "text": text,
+        "time": datetime.datetime.now().strftime("%H:%M:%S")
+    })
 
     if "!ai" in text.lower():
         claim = text.lower().replace("!ai", "").strip()
-        ai_reply = verify_fact(claim if claim else "Ahoj!")
-        messages.append({"user": "🛡️ AI FAKT-CHECKER", "text": ai_reply, "time": datetime.datetime.now().strftime("%H:%M:%S")})
+        ai_reply = verify_fact(claim if claim else "Ahoj, jsem připraven kontrolovat fakta.")
+        messages.append({
+            "user": "🛡️ AI FAKT-CHECKER",
+            "text": ai_reply,
+            "time": datetime.datetime.now().strftime("%H:%M:%S")
+        })
+
     return jsonify({"status": "ok"})
 
 def verify_fact(text):
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
-    payload = {
-        "model": "gemma3:27b",
-        "messages": [
-            {"role": "system", "content": "Jsi přísný kontrolor faktů. Odpověz jednou krátkou větou, zda je to pravda nebo lež."},
-            {"role": "user", "content": text}
-        ],
-        "temperature": 0.7
+    # ✅ použije BASE_URL z ENV
+    url = f"{OPENAI_BASE_URL}/chat/completions"
+
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
     }
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": "Jsi přísný kontrolor faktů. Odpověz jednou větou."},
+            {"role": "user", "content": text}
+        ]
+    }
+
     try:
-        r = requests.post(OPENAI_BASE_URL, json=payload, headers=headers, timeout=15)
-        return r.json()['choices'][0]['message']['content'].strip()
+        r = requests.post(url, headers=headers, json=payload, timeout=15)
+        return r.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        return f"⚠️ AI neodpovídá. (Chyba: {str(e)})"
+        return f"⚠️ AI chyba: {str(e)}"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8081)
+    app.run(
+        host='0.0.0.0',
+        port=int(os.environ.get("PORT", 8081))
+    )
