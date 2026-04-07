@@ -6,11 +6,10 @@ import os
 
 app = Flask(__name__)
 
-# ✅ načtení z ENV (server si to nastaví sám)
-api_key = os.environ.get("OPENAI_API_KEY",)
-base_url = os.environ.get("OPENAI_BASE_URL", "https://kurim.ithope.eu/v1")
+# ✅ načtení z ENV
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")  # nevyužitý, ale kvůli zadání
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "http://host.docker.internal:11434")
 
-# List pro ukládání historie zpráv
 messages = []
 
 def get_server_ip():
@@ -71,25 +70,20 @@ def send_message():
     return jsonify({"status": "ok"})
 
 def verify_fact(text):
-    # ✅ použije BASE_URL z ENV
-    url = f"{OPENAI_BASE_URL}/chat/completions"
+    # ✅ Ollama endpoint z ENV
+    url = f"{OPENAI_BASE_URL}/api/generate"
 
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    prompt = f"Jsi přísný kontrolor faktů. Posuď krátce (1 věta), zda je toto tvrzení pravdivé nebo lživé: {text}"
 
     payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": "Jsi přísný kontrolor faktů. Odpověz jednou větou."},
-            {"role": "user", "content": text}
-        ]
+        "model": "gemma3:27b",
+        "prompt": prompt,
+        "stream": False
     }
 
     try:
-        r = requests.post(url, headers=headers, json=payload, timeout=15)
-        return r.json()["choices"][0]["message"]["content"]
+        r = requests.post(url, json=payload, timeout=20)
+        return r.json().get("response", "Chyba v odpovědi AI.")
     except Exception as e:
         return f"⚠️ AI chyba: {str(e)}"
 
