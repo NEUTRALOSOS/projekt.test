@@ -1,16 +1,13 @@
-# Použijeme lehký Python obraz
-FROM python:3.9-slim
+FROM python:3.12-slim
 
-# Nastavení pracovního adresáře
 WORKDIR /app
 
-# Kopírování souborů
+# Instalace závislostí
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
 
-# Expozice portu
-EXPOSE 8081
+# Kopírování zbytku aplikace
+COPY . .
 
 # Spuštění aplikace
 CMD ["python", "app.py"]
