@@ -6,7 +6,7 @@ import socket
 app = Flask(__name__)
 
 # Tvůj OpenAI-compatible setup
-OPENAI_API_KEY = "sk-bDybioUj4ecaemlOUdyPSg"
+OPENAI_API_KEY = ""
 OPENAI_BASE_URL = "https://kurim.ithope.eu/v1"
 
 # List pro ukládání historie zpráv v paměti
