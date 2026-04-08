@@ -80,7 +80,7 @@ def verify_fact(text):
     clean_url = OPENAI_BASE_URL.rstrip('/')
     target_url = f"{clean_url}/chat/completions"
 
-    prompt = f"Zkontroluj pravdivost tvrzení, pokud je tvrzeni pravdive tak to potvrď, pokud ale není tak oprav a ve zkratce vysvětli, pokud se nekdo na neco bude ptát tak spravnost neověřuj a velmi krátce odpověz : {text}"
+    prompt = f"Zkontroluj pravdivost tvrzení, pokud je tvrzeni pravdive tak to potvrď, pokud ale není tak oprav a ve zkratce vysvětli, pokud se nekdo na neco bude ptát tak spravnost neověřuj a NEPIŠ že ji neověřuješ a velmi krátce odpověz : {text}"
 
     # ✅ Oprava struktury payloadu (z prompt na messages)
     payload = {
