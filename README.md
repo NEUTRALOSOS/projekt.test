@@ -1,30 +1,44 @@
-# 🛡️ AI Fakt-Checker Chat (Flask App)
+# 🧠 AI NotePad (Modern Chat UI)
 
-Jednoduchá webová chatovací aplikace ve Flasku s integrovaným AI fact-checkerem.  
-Uživatel může psát zprávy a pomocí příkazu `!ai` nechat AI ověřit pravdivost tvrzení.
-
----
-
-## 🚀 Funkce
-
-- 💬 Chat mezi uživateli (v paměti)
-- 🛡️ AI fact-checker (`!ai`)
-- 🌐 REST API endpointy
-- ⚙️ Konfigurace přes ENV proměnné
-- 📡 Status a ping endpoint
+Jednoduchá webová chatovací aplikace vytvořená ve Flasku s moderním dark-mode rozhraním. Slouží jako sdílený poznámkový blok s možností komunikace s AI pomocí příkazu `!ai`.
 
 ---
 
-## 📦 Požadavky
+## ✨ Funkce
 
-- Python 3.8+
-- pip
+- 💬 Chat pro více uživatelů v reálném čase (polling)
+- 🤖 Integrace AI přes příkaz `!ai`
+- 🕒 Časové razítko u každé zprávy
+- 🌙 Moderní dark mode design
+- 🎨 Stylizované chat bubliny (uživatel / AI)
+- 📱 Responzivní layout (mobil i desktop)
+- ⚡ Automatická aktualizace zpráv každé 2 sekundy
 
 ---
 
-## 🔧 Instalace
+## 🖥️ UI Vlastnosti
 
+- Dark background (`#0f172a`)
+- Chat box ve stylu moderních aplikací (Discord-like)
+- Oddělené zprávy:
+  - 🔵 uživatel (vpravo)
+  - ⚫ AI (vlevo, kurzíva)
+- Sticky input panel dole
+- Automatický scroll dolů
+- Hover efekt na tlačítku
+
+---
+
+## 🛠️ Technologie
+
+- **Backend:** Python + Flask  
+- **Frontend:** HTML + CSS + JavaScript  
+- **Komunikace:** Fetch API (REST)  
+
+---
+
+## 🚀 Spuštění
+
+### 1. Instalace
 ```bash
-git clone <repo-url>
-cd <repo>
-pip install flask requests urllib3
+pip install flask requests
