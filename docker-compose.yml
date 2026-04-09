@@ -1,9 +1,0 @@
-services:
-  web:
-    build: .
-    ports:
-      - "8081:5000"  # Přístup zvenku přes 8081, uvnitř kontejneru jde na 5000
-    environment:
-      - PORT=5000
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL}
