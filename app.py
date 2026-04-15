@@ -8,14 +8,13 @@ from sqlalchemy.exc import OperationalError
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-app = Flask(name)
-
+# OPRAVA: Musí zde být __name__ s podtržítky
+app = Flask(__name__)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://student:heslo123@db:5432/myapp")
 engine = create_engine(DATABASE_URL)
 
 def init_db():
-    # Počkáme, až se Postgres nastartuje (max 10 pokusů)
     for i in range(10):
         try:
             with engine.begin() as conn:
@@ -46,7 +45,6 @@ def index():
 def get_messages():
     try:
         with engine.connect() as conn:
-            # Postgres používá TO_CHAR pro formátování času
             query = text("SELECT username, message_text, TO_CHAR(created_at, 'HH24:MI:SS') FROM chat_messages ORDER BY created_at ASC")
             result = conn.execute(query)
             output = [{"user": row[0], "text": row[1], "time": row[2]} for row in result]
@@ -102,5 +100,7 @@ def verify_fact(text_input):
     except Exception as e:
         return f"⚠️ AI chyba spojení: {str(e)}"
 
-if name == 'main':
-    app.run(host='0.0.0.0', port=5000)
+# OPRAVA: Správné porovnání s __name__ a dynamický port
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
