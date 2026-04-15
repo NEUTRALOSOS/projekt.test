@@ -8,14 +8,16 @@ from sqlalchemy.exc import OperationalError
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# OPRAVA: Musí zde být __name__ s podtržítky
+# Důležité: __name__ musí mít dvě podtržítka na každé straně!
 app = Flask(__name__)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://student:heslo123@db:5432/myapp")
 engine = create_engine(DATABASE_URL)
 
 def init_db():
-    for i in range(10):
+    print("Iniciuji připojení k databázi...")
+    # Zvýšíme počet pokusů, Postgres může startovat déle
+    for i in range(15):
         try:
             with engine.begin() as conn:
                 conn.execute(text("""
@@ -26,19 +28,23 @@ def init_db():
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """))
-            print("Databáze Postgres je připravena.")
-            return
-        except OperationalError:
-            print(f"Čekám na databázi... (pokus {i+1}/10)")
-            time.sleep(2)
+            print("✅ Databáze Postgres je připravena.")
+            return True
+        except Exception as e:
+            print(f"❌ Čekám na databázi... (pokus {i+1}/15), chyba: {e}")
+            time.sleep(3)
+    return False
 
-init_db()
+# Spustíme inicializaci
+db_ready = init_db()
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://kurim.ithope.eu/v1")
 
 @app.route('/')
 def index():
+    if not db_ready:
+        return "Databáze není připravena, zkuste to za chvíli.", 503
     return render_template('index.html')
 
 @app.route('/get_messages', methods=['GET'])
@@ -100,7 +106,7 @@ def verify_fact(text_input):
     except Exception as e:
         return f"⚠️ AI chyba spojení: {str(e)}"
 
-# OPRAVA: Správné porovnání s __name__ a dynamický port
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    # Načtení portu z proměnné prostředí (dle screenshotu č. 1)
+    target_port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=target_port)
