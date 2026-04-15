@@ -16,3 +16,7 @@ services:
       - POSTGRES_USER=student
       - POSTGRES_PASSWORD=heslo123
       - POSTGRES_DB=myapp
+    # --- TATO ČÁST JE KLÍČOVÁ ---
+    volumes:
+      - /data:/var/lib/postgresql/data
+    # ----------------------------
