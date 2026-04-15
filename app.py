@@ -11,44 +11,28 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = Flask(__name__)
 
-# --- DATABÁZE ---
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local.db")
+# --- DATABÁZE (SQLite v perzistentním adresáři /data) ---
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:////data/database.db")
 engine = create_engine(DATABASE_URL)
 
-# Retry loop: Pockej, az se DB nastartuje (podle zadání v tipech)
-for i in range(10):
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        break
-    except Exception:
-        print(f"Cekam na DB... pokus {i+1}")
-        time.sleep(2)
-
-# Vytvoreni tabulky pro zpravy/nicknamy
-with engine.connect() as conn:
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS chat_messages (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(100),
-            message_text TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
-    conn.commit()
+# Vytvoreni tabulky pro zpravy (SQLite syntaxe s AUTOINCREMENT)
+try:
+    with engine.connect() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(100),
+                message_text TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.commit()
+except Exception as e:
+    print(f"Chyba pri inicializaci DB: {e}")
 
 # --- ZBYTEK LOGIKY ---
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://kurim.ithope.eu/v1")
-
-def get_server_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except: return "127.0.0.1"
 
 @app.route('/')
 def index():
@@ -56,16 +40,19 @@ def index():
 
 @app.route('/get_messages', methods=['GET'])
 def get_messages():
-    with engine.connect() as conn:
-        result = conn.execute(text("SELECT username, message_text, created_at FROM chat_messages ORDER BY created_at ASC"))
-        output = []
-        for row in result:
-            output.append({
-                "user": row[0],
-                "text": row[1],
-                "time": row[2].strftime("%H:%M:%S")
-            })
-    return jsonify(output)
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT username, message_text, created_at FROM chat_messages ORDER BY created_at ASC"))
+            output = []
+            for row in result:
+                output.append({
+                    "user": row[0],
+                    "text": row[1],
+                    "time": row[2].strftime("%H:%M:%S") if row[2] else ""
+                })
+        return jsonify(output)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/send_message', methods=['POST'])
 def send_message():
@@ -84,7 +71,7 @@ def send_message():
         )
         conn.commit()
 
-    # AI logika zůstává stejná, jen výsledek taky uložíme do DB
+    # AI logika
     if "!ai" in text_val.lower():
         claim = text_val.lower().replace("!ai", "").strip()
         ai_reply = verify_fact(claim if claim else "Ahoj!")
