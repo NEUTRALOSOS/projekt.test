@@ -12,7 +12,6 @@ app = Flask(__name__)
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://student:heslo123@db:5432/myapp")
 engine = create_engine(DATABASE_URL)
 
-# --- 1. ČEKÁNÍ NA DATABÁZI (Jako u kamaráda) ---
 db_ready = False
 print("Iniciuji připojení k databázi...")
 for i in range(15):
@@ -26,7 +25,6 @@ for i in range(15):
         print(f"❌ Čekám na databázi... (pokus {i+1}/15)")
         time.sleep(3)
 
-# Pokud se připojíme, rovnou vytvoříme tabulky
 if db_ready:
     with engine.connect() as conn:
         conn.execute(text("""
@@ -42,7 +40,6 @@ if db_ready:
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://kurim.ithope.eu/v1")
 
-# --- 2. TVŮJ HTML KÓD VLOŽENÝ PŘÍMO SEM ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="cs">
@@ -117,12 +114,10 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# --- 3. ROUTY ---
 @app.route('/')
 def index():
     if not db_ready:
         return "Databáze není připravena, zkuste to za chvíli.", 503
-    # Renderujeme přímo ten obrovský text výše, nepotřebujeme složku templates!
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/get_messages', methods=['GET'])
